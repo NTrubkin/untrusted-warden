@@ -1,6 +1,13 @@
 package ru.ntrubkin.untrusted.warden.model;
 
-public record User(
+import lombok.Builder;
 
+import java.util.UUID;
+
+@Builder
+public record User(
+    UUID id,
+    String username,
+    String password
 ) {
 }

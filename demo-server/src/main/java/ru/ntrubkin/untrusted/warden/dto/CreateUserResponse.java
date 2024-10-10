@@ -1,4 +1,11 @@
 package ru.ntrubkin.untrusted.warden.dto;
 
-public record CreateUserResponse() {
+import lombok.Builder;
+
+import java.util.UUID;
+
+@Builder
+public record CreateUserResponse(
+    UUID id
+) {
 }
