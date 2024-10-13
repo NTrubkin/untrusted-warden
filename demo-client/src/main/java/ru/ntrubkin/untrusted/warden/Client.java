@@ -70,7 +70,6 @@ public class Client {
 
     @SneakyThrows
     public GroupDto getGroup(String groupName) {
-        String group = server.getGroup(groupName, auth);
-        return objectMapper.readValue(group, GroupDto.class);
+        return server.getGroup(groupName, auth);
     }
 }

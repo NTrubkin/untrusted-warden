@@ -144,11 +144,11 @@ public class Server {
     }
 
     @SneakyThrows
-    public String getGroup(String groupName, AuthDto auth) {
+    public GroupDto getGroup(String groupName, AuthDto auth) {
         login(auth);
         Group group = findGroup(groupName);
         checkAuthUserIsMember(auth, group);
-        return objectMapper.writeValueAsString(toDto(group));
+        return toDto(group);
     }
 
     public CurrentUserDto getCurrentUser(AuthDto auth) {
