@@ -1,19 +1,23 @@
 package ru.ntrubkin.untrusted.warden;
 
+import ru.ntrubkin.untrusted.warden.dto.GroupDto;
+import ru.ntrubkin.untrusted.warden.dto.UserDto;
+
 import java.io.Console;
+import java.util.Scanner;
 
 public class Main {
 
-    private Console console;
     private Client client;
+    private Scanner scanner;
 
     public static void main(String[] args) {
         new Main().run();
     }
 
     public void run() {
-        client = new Client();
-        console = System.console();
+        client = new Client(new Server());
+        scanner = new Scanner(System.in);
         menu(client);
     }
 
@@ -24,84 +28,156 @@ public class Main {
             System.out.println("2. Показать список юзеров");
             System.out.println("3. Залогиниться");
             System.out.println("4. Создать группу");
-            System.out.println("5. Добавить юзера в группу");
-            System.out.println("6. Удалить юзера из группы");
-            System.out.println("7. Показать юзеров группы");
-            System.out.println("8. Добавить пароль в группу");
-            System.out.println("9. Удалить пароль из группы");
-            System.out.println("10. Удалить пароли группы");
-            String command = console.readLine("Введи номер команды: ");
-            switch (command) {
-                case "1" -> createUser();
-                case "2" -> showUsers();
-                case "3" -> login();
-                case "4" -> createGroup();
-                case "5" -> addUserToGroup();
-                case "6" -> removeUserFromGroup();
-                case "7" -> showGroupUsers();
-                case "8" -> addPasswordToGroup();
-                case "9" -> removePasswordFromGroup();
-                case "10" -> showGroupPasswords();
-            }
+            System.out.println("5. Показать мои группы");
+            System.out.println("6. Добавить юзера в группу");
+            System.out.println("7. Удалить юзера из группы");
+            System.out.println("8. Показать юзеров группы");
+            System.out.println("9. Добавить пароль в группу");
+            System.out.println("10. Удалить пароль из группы");
+            System.out.println("11. Показать пароли группы");
+            String command = readLine("Введи номер команды: ");
+            tryRun(() -> {
+                switch (command) {
+                    case "1" -> createUser();
+                    case "2" -> showUsers();
+                    case "3" -> login();
+                    case "4" -> createGroup();
+                    case "5" -> showMyGroups();
+                    case "6" -> addUserToGroup();
+                    case "7" -> removeUserFromGroup();
+                    case "8" -> showGroupUsers();
+                    case "9" -> addPasswordToGroup();
+                    case "10" -> removePasswordFromGroup();
+                    case "11" -> showGroupPasswords();
+                }
+            });
         }
     }
 
-    private void showGroupPasswords() {
-        // todo: implement this
-        throw new UnsupportedOperationException("not implemented yet");
+    private String readLine(String label) {
+        System.out.print(label);
+        return scanner.nextLine();
     }
 
-    private void showGroupUsers() {
-        // todo: implement this
-        throw new UnsupportedOperationException("not implemented yet");
+    private void tryRun(Runnable runnable) {
+        try {
+            runnable.run();
+        } catch (Exception e) {
+            System.out.println("Произошла ошибка " + e.getClass().getSimpleName() + ": " + e.getMessage());
+            pause();
+            System.out.println();
+        }
     }
 
-    private void removePasswordFromGroup() {
-        String username = console.readLine("Введи юзернейм: ");
-        String passwordName = console.readLine("Введи название пароля: ");
-        client.removePasswordFromGroup(username, passwordName);
+    private void pause() {
+        System.out.print("Для продолжения введи enter...");
+        scanner.nextLine();
     }
 
-    private void addPasswordToGroup() {
-        String username = console.readLine("Введи юзернейм: ");
-        String passwordName = console.readLine("Введи название пароля: ");
-        String password = console.readLine("Введи пароль: ");
-        client.addPasswordToGroup(username, passwordName, password);
-    }
-
-    private void removeUserFromGroup() {
-        String username = console.readLine("Введи юзернейм: ");
-        String groupName = console.readLine("Введи название группы: ");
-        client.removeUserToGroup(username, groupName);
-    }
-
-    private void addUserToGroup() {
-        String username = console.readLine("Введи юзернейм: ");
-        String groupName = console.readLine("Введи название группы: ");
-        client.addUserToGroup(username, groupName);
-    }
-
-    private void showUsers() {
-        // todo: implement this
-        throw new UnsupportedOperationException("not implemented yet");
-    }
-
-    private void createGroup() {
-        String name = console.readLine("Введи название группы: ");
-        client.createGroup(name);
-    }
-
+    // 1
     private void createUser() {
-        String username = console.readLine("Введи юзернейм: ");
-        char[] password = console.readPassword("Введи пароль: ");
-        client.createUser(username, String.valueOf(password));
+        String username = readLine("Введи юзернейм: ");
+        String password = readLine("Введи пароль: ");
+        client.createUser(username, password);
+        System.out.println();
     }
 
+    // 2
+    private void showUsers() {
+        System.out.println("Юзеры: ");
+        client.getUsers()
+            .stream()
+            .map(UserDto::username)
+            .map(username -> "- " + username)
+            .forEach(System.out::println);
+        pause();
+        System.out.println();
+    }
+
+    // 3
     private void login() {
-        String username = console.readLine("Введи юзернейм: ");
-        char[] password = console.readPassword("Введи пароль: ");
-        client.login(username, String.valueOf(password));
+        String username = readLine("Введи юзернейм: ");
+        String password = readLine("Введи пароль: ");
+        client.login(username, password);
+        System.out.println();
     }
 
+    // 4
+    private void createGroup() {
+        String name = readLine("Введи название группы: ");
+        client.createGroup(name);
+        System.out.println();
+    }
 
+    // 5
+    private void showMyGroups() {
+        System.out.println("Мои группы: ");
+        client.getMyGroups()
+            .stream()
+            .map(GroupDto::name)
+            .map(groupName -> "- " + groupName)
+            .forEach(System.out::println);
+        pause();
+        System.out.println();
+    }
+
+    //6
+    private void addUserToGroup() {
+        String username = readLine("Введи юзернейм: ");
+        String groupName = readLine("Введи название группы: ");
+        client.addUserToGroup(username, groupName);
+        System.out.println();
+    }
+
+    // 7
+    private void removeUserFromGroup() {
+        String username = readLine("Введи юзернейм: ");
+        String groupName = readLine("Введи название группы: ");
+        client.removeUserToGroup(username, groupName);
+        System.out.println();
+    }
+
+    // 8
+    private void showGroupUsers() {
+        String groupName = readLine("Введи название группы: ");
+        System.out.println("Юзеры группы " + groupName + ": ");
+        client.getGroup(groupName)
+            .members()
+            .stream()
+            .map(username -> "- " + username)
+            .forEach(System.out::println);
+        pause();
+        System.out.println();
+    }
+
+    // 9
+    private void addPasswordToGroup() {
+        String passwordName = readLine("Введи название пароля: ");
+        String password = readLine("Введи пароль: ");
+        String groupName = readLine("Введи название группы: ");
+        client.addPasswordToGroup(passwordName, password, groupName);
+        System.out.println();
+    }
+
+    // 10
+    private void removePasswordFromGroup() {
+        String passwordName = readLine("Введи название пароля: ");
+        String groupName = readLine("Введи название группы: ");
+        client.removePasswordFromGroup(passwordName, groupName);
+        System.out.println();
+    }
+
+    // 11
+    private void showGroupPasswords() {
+        String groupName = readLine("Введи название группы: ");
+        System.out.println("Пароли группы " + groupName + ": ");
+        client.getGroup(groupName)
+            .passwords()
+            .entrySet()
+            .stream()
+            .map(password -> "- " + password.getKey() + ": " + password.getValue())
+            .forEach(System.out::println);
+        pause();
+        System.out.println();
+    }
 }
