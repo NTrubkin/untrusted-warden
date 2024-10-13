@@ -1,10 +1,15 @@
 package ru.ntrubkin.untrusted.warden;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import ru.ntrubkin.untrusted.warden.component.AsymmetricEncryptor;
+import ru.ntrubkin.untrusted.warden.component.ServicePasswordHasher;
+import ru.ntrubkin.untrusted.warden.component.SymmetricEncryptor;
 import ru.ntrubkin.untrusted.warden.dto.GroupDto;
 import ru.ntrubkin.untrusted.warden.dto.UserDto;
 
-import java.io.Console;
 import java.util.Scanner;
+
+import static com.fasterxml.jackson.databind.DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES;
 
 public class Main {
 
@@ -16,7 +21,15 @@ public class Main {
     }
 
     public void run() {
-        client = new Client(new Server());
+        ObjectMapper objectMapper = new ObjectMapper()
+            .disable(FAIL_ON_UNKNOWN_PROPERTIES);
+        client = new Client(
+            new Server(objectMapper),
+            objectMapper,
+            new ServicePasswordHasher(),
+            new SymmetricEncryptor(),
+            new AsymmetricEncryptor()
+        );
         scanner = new Scanner(System.in);
         menu(client);
     }

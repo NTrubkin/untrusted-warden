@@ -1,7 +1,11 @@
 package ru.ntrubkin.untrusted.warden;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import lombok.RequiredArgsConstructor;
+import lombok.SneakyThrows;
 import ru.ntrubkin.untrusted.warden.dto.AuthDto;
 import ru.ntrubkin.untrusted.warden.dto.GroupDto;
+import ru.ntrubkin.untrusted.warden.dto.CurrentUserDto;
 import ru.ntrubkin.untrusted.warden.dto.UserDto;
 import ru.ntrubkin.untrusted.warden.model.Group;
 import ru.ntrubkin.untrusted.warden.model.User;
@@ -12,12 +16,14 @@ import java.util.List;
 
 import static java.util.UUID.randomUUID;
 
+@RequiredArgsConstructor
 public class Server {
 
     private final List<User> users = new ArrayList<>();
     private final List<Group> groups = new ArrayList<>();
+    private final ObjectMapper objectMapper;
 
-    public void registerUser(String username, String password) {
+    public void registerUser(String username, String password, String publicKey, String encryptedPrivateKey) {
         boolean userExists = users.stream()
             .anyMatch(user -> user.getUsername().equals(username));
         if (userExists) {
@@ -27,6 +33,8 @@ public class Server {
             .id(randomUUID())
             .username(username)
             .password(password)
+            .publicKey(publicKey)
+            .encryptedPrivateKey(encryptedPrivateKey)
             .build();
         users.add(user);
     }
@@ -135,10 +143,17 @@ public class Server {
         group.getPasswords().remove(passwordName);
     }
 
-    public GroupDto getGroup(String groupName, AuthDto auth) {
+    @SneakyThrows
+    public String getGroup(String groupName, AuthDto auth) {
         login(auth);
         Group group = findGroup(groupName);
         checkAuthUserIsMember(auth, group);
-        return toDto(group);
+        return objectMapper.writeValueAsString(toDto(group));
+    }
+
+    public CurrentUserDto getCurrentUser(AuthDto auth) {
+        login(auth);
+        User user = findUser(auth.username());
+        return new CurrentUserDto(user.getUsername(), user.getPublicKey(), user.getEncryptedPrivateKey());
     }
 }
