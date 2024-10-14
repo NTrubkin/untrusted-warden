@@ -98,6 +98,7 @@ public class Client {
 
         List<UserDto> groupMembers = server.getGroupMembers(groupName, auth);
         Map<String, byte[]> inboxUpdates = groupMembers.stream()
+            .filter(member -> !member.username().equals(username))
             .collect(toMap(
                 UserDto::username,
                 member -> asymmetricEncryptor.encrypt(newGroupKey.getBytes(), member.publicKey())
