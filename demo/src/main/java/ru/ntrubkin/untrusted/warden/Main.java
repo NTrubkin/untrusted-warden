@@ -24,7 +24,7 @@ public class Main {
         ObjectMapper objectMapper = new ObjectMapper()
             .disable(FAIL_ON_UNKNOWN_PROPERTIES);
         client = new Client(
-            new Server(objectMapper),
+            new Server(),
             objectMapper,
             new ServicePasswordHasher(),
             new SymmetricEncryptor(),
@@ -146,7 +146,7 @@ public class Main {
     private void removeUserFromGroup() {
         String username = readLine("Введи юзернейм: ");
         String groupName = readLine("Введи название группы: ");
-        client.removeUserToGroup(username, groupName);
+        client.removeUserFromGroup(username, groupName);
         System.out.println();
     }
 
@@ -184,8 +184,7 @@ public class Main {
     private void showGroupPasswords() {
         String groupName = readLine("Введи название группы: ");
         System.out.println("Пароли группы " + groupName + ": ");
-        client.getGroup(groupName)
-            .passwords()
+        client.getGroupPasswords(groupName)
             .entrySet()
             .stream()
             .map(password -> "- " + password.getKey() + ": " + password.getValue())

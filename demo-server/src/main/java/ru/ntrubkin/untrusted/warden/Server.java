@@ -1,11 +1,10 @@
 package ru.ntrubkin.untrusted.warden;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.SneakyThrows;
 import ru.ntrubkin.untrusted.warden.dto.AuthDto;
-import ru.ntrubkin.untrusted.warden.dto.GroupDto;
 import ru.ntrubkin.untrusted.warden.dto.CurrentUserDto;
+import ru.ntrubkin.untrusted.warden.dto.GroupDto;
 import ru.ntrubkin.untrusted.warden.dto.UserDto;
 import ru.ntrubkin.untrusted.warden.model.Group;
 import ru.ntrubkin.untrusted.warden.model.User;
@@ -13,6 +12,7 @@ import ru.ntrubkin.untrusted.warden.model.User;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import static java.util.UUID.randomUUID;
 
@@ -21,9 +21,8 @@ public class Server {
 
     private final List<User> users = new ArrayList<>();
     private final List<Group> groups = new ArrayList<>();
-    private final ObjectMapper objectMapper;
 
-    public void registerUser(String username, String password, String publicKey, String encryptedPrivateKey) {
+    public void registerUser(String username, String password, byte[] publicKey, byte[] encryptedPrivateKey) {
         boolean userExists = users.stream()
             .anyMatch(user -> user.getUsername().equals(username));
         if (userExists) {
@@ -35,6 +34,7 @@ public class Server {
             .password(password)
             .publicKey(publicKey)
             .encryptedPrivateKey(encryptedPrivateKey)
+            .inbox(new HashMap<>())
             .build();
         users.add(user);
     }
@@ -50,11 +50,11 @@ public class Server {
     public List<UserDto> getUsers(AuthDto auth) {
         login(auth);
         return users.stream()
-            .map(user -> new UserDto(user.getUsername()))
+            .map(this::toDto)
             .toList();
     }
 
-    public void createGroup(String groupName, AuthDto auth) {
+    public void createGroup(String groupName, byte[] encryptedPasswords, byte[] encryptedGroupKey, AuthDto auth) {
         login(auth);
         boolean groupExists = groups.stream()
             .anyMatch(group -> group.getName().equals(groupName));
@@ -65,10 +65,18 @@ public class Server {
         Group group = Group.builder()
             .name(groupName)
             .members(new ArrayList<>())
-            .passwords(new HashMap<>())
+            .encryptedPasswords(encryptedPasswords)
             .build();
         group.getMembers().add(user);
+        user.getInbox().put(group.getName(), encryptedGroupKey);
         groups.add(group);
+    }
+
+    private void updateInboxes(String groupName, Map<String, byte[]> inboxUpdates) {
+        inboxUpdates.forEach((username, encryptedGroupKey) -> {
+            User user = findUser(username);
+            user.getInbox().put(groupName, encryptedGroupKey);
+        });
     }
 
     public List<GroupDto> getMyGroups(AuthDto auth) {
@@ -84,11 +92,12 @@ public class Server {
         return new GroupDto(
             group.getName(),
             group.getMembers().stream().map(User::getUsername).toList(),
-            group.getPasswords()
+            group.getMembers().stream().map(User::getPublicKey).toList(),
+            group.getEncryptedPasswords()
         );
     }
 
-    public void addUserToGroup(String username, String groupName, AuthDto auth) {
+    public void addUserToGroup(String username, String groupName, byte[] newEncryptedGroupKey, AuthDto auth) {
         login(auth);
         Group group = findGroup(groupName);
         checkAuthUserIsMember(auth, group);
@@ -98,6 +107,7 @@ public class Server {
             return;
         }
         group.getMembers().add(newUser);
+        newUser.getInbox().put(group.getName(), newEncryptedGroupKey);
     }
 
     private void checkAuthUserIsMember(AuthDto auth, Group group) {
@@ -121,26 +131,32 @@ public class Server {
             .orElseThrow(() -> new RuntimeException("Юзер не найден"));
     }
 
-    public void removeUserFromGroup(String username, String groupName, AuthDto auth) {
+    public void removeUserFromGroup(
+        String username,
+        String groupName,
+        byte[] encryptedPasswords,
+        Map<String, byte[]> inboxUpdates,
+        AuthDto auth
+    ) {
         login(auth);
         Group group = findGroup(groupName);
         checkAuthUserIsMember(auth, group);
         User user = findUser(username);
         group.getMembers().remove(user);
+        user.getInbox().remove(groupName);
+        group.setEncryptedPasswords(encryptedPasswords);
+        updateInboxes(groupName, inboxUpdates);
     }
 
-    public void addPasswordToGroup(String passwordName, String password, String groupName, AuthDto auth) {
+    public void updateGroupPasswords(
+        byte[] newEncryptedPassword,
+        String groupName,
+        AuthDto auth
+    ) {
         login(auth);
         Group group = findGroup(groupName);
         checkAuthUserIsMember(auth, group);
-        group.getPasswords().put(passwordName, password);
-    }
-
-    public void removePasswordFromGroup(String passwordName, String groupName, AuthDto auth) {
-        login(auth);
-        Group group = findGroup(groupName);
-        checkAuthUserIsMember(auth, group);
-        group.getPasswords().remove(passwordName);
+        group.setEncryptedPasswords(newEncryptedPassword);
     }
 
     @SneakyThrows
@@ -154,6 +170,33 @@ public class Server {
     public CurrentUserDto getCurrentUser(AuthDto auth) {
         login(auth);
         User user = findUser(auth.username());
-        return new CurrentUserDto(user.getUsername(), user.getPublicKey(), user.getEncryptedPrivateKey());
+        return CurrentUserDto.builder()
+            .username(user.getUsername())
+            .publicKey(user.getPublicKey())
+            .encryptedPrivateKey(user.getEncryptedPrivateKey())
+            .inbox(user.getInbox())
+            .build();
+    }
+
+    public UserDto getUser(String username, AuthDto auth) {
+        login(auth);
+        User user = findUser(username);
+        return toDto(user);
+    }
+
+    private UserDto toDto(User user) {
+        return UserDto.builder()
+            .username(user.getUsername())
+            .publicKey(user.getPublicKey())
+            .build();
+    }
+
+    public List<UserDto> getGroupMembers(String groupName, AuthDto auth) {
+        login(auth);
+        Group group = findGroup(groupName);
+        return group.getMembers()
+            .stream()
+            .map(this::toDto)
+            .toList();
     }
 }

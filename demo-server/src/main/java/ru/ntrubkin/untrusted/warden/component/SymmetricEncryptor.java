@@ -8,6 +8,7 @@ import javax.crypto.SecretKeyFactory;
 import javax.crypto.spec.IvParameterSpec;
 import javax.crypto.spec.PBEKeySpec;
 import javax.crypto.spec.SecretKeySpec;
+import java.nio.charset.StandardCharsets;
 import java.security.SecureRandom;
 import java.security.spec.KeySpec;
 import java.util.Base64;
@@ -42,7 +43,7 @@ public class SymmetricEncryptor {
     }
 
     @SneakyThrows
-    public String encrypt(String plainText, String password) {
+    public byte[] encrypt(byte[] plainText, String password) {
         byte[] salt = generateSalt();
         byte[] iv = generateIV();
         IvParameterSpec ivSpec = new IvParameterSpec(iv);
@@ -52,26 +53,24 @@ public class SymmetricEncryptor {
         Cipher cipher = Cipher.getInstance(CIPHER_TRANSFORMATION);
         cipher.init(Cipher.ENCRYPT_MODE, key, ivSpec);
 
-        byte[] cipherText = cipher.doFinal(plainText.getBytes());
+        byte[] cipherText = cipher.doFinal(plainText);
 
         byte[] encryptedMessage = new byte[salt.length + iv.length + cipherText.length];
         System.arraycopy(salt, 0, encryptedMessage, 0, salt.length);
         System.arraycopy(iv, 0, encryptedMessage, salt.length, iv.length);
         System.arraycopy(cipherText, 0, encryptedMessage, salt.length + iv.length, cipherText.length);
 
-        return Base64.getEncoder().encodeToString(encryptedMessage);
+        return encryptedMessage;
     }
 
     @SneakyThrows
-    public String decrypt(String encryptedText, String password) {
-        byte[] encryptedMessage = Base64.getDecoder().decode(encryptedText);
-
+    public byte[] decrypt(byte[] encryptedText, String password) {
         byte[] salt = new byte[SALT_SIZE];
         byte[] iv = new byte[IV_SIZE];
-        byte[] cipherText = new byte[encryptedMessage.length - SALT_SIZE - IV_SIZE];
-        System.arraycopy(encryptedMessage, 0, salt, 0, SALT_SIZE);
-        System.arraycopy(encryptedMessage, SALT_SIZE, iv, 0, IV_SIZE);
-        System.arraycopy(encryptedMessage, SALT_SIZE + IV_SIZE, cipherText, 0, cipherText.length);
+        byte[] cipherText = new byte[encryptedText.length - SALT_SIZE - IV_SIZE];
+        System.arraycopy(encryptedText, 0, salt, 0, SALT_SIZE);
+        System.arraycopy(encryptedText, SALT_SIZE, iv, 0, IV_SIZE);
+        System.arraycopy(encryptedText, SALT_SIZE + IV_SIZE, cipherText, 0, cipherText.length);
 
         IvParameterSpec ivSpec = new IvParameterSpec(iv);
 
@@ -80,8 +79,14 @@ public class SymmetricEncryptor {
         Cipher cipher = Cipher.getInstance(CIPHER_TRANSFORMATION);
         cipher.init(Cipher.DECRYPT_MODE, key, ivSpec);
 
-        byte[] plainText = cipher.doFinal(cipherText);
+        return cipher.doFinal(cipherText);
+    }
 
-        return new String(plainText);
+
+    public static void main(String[] args) {
+        SymmetricEncryptor symmetricEncryptor = new SymmetricEncryptor();
+        byte[] encrypted = symmetricEncryptor.encrypt("hw".getBytes(), "password1");
+        byte[] decrypted = symmetricEncryptor.decrypt(encrypted, "password1");
+        System.out.println(new String(decrypted));
     }
 }

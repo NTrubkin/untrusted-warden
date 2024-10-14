@@ -11,5 +11,5 @@ import java.util.Map;
 public class Group {
     String name;
     List<User> members;
-    Map<String, String> passwords;
+    byte[] encryptedPasswords;
 }
